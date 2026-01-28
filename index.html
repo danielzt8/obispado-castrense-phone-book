@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Directorio Oficial</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center font-sans">
+
+    <div class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-lg border-t-8 border-blue-900">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Directorio Telefónico</h1>
+        <p class="text-gray-500 mb-6 text-sm">Carga tu Excel para generar el PDF institucional.</p>
+
+        <div class="space-y-4">
+            <input type="file" id="inputExcel" accept=".xlsx, .xls" 
+                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
+            
+            <button onclick="procesarYGenerar()" 
+                class="w-full bg-blue-900 text-white py-3 rounded-lg font-bold hover:bg-blue-800 transition duration-300 shadow-md">
+                GENERAR PDF LIMPIO
+            </button>
+        </div>
+        
+        <div id="status" class="mt-4 text-center text-xs text-gray-400 italic"></div>
+    </div>
+
+    <script>
+  async function procesarYGenerar() {
+    const fileInput = document.getElementById('inputExcel');
+    if (!fileInput.files[0]) return alert("Selecciona el archivo");
+
+    const data = await fileInput.files[0].arrayBuffer();
+    const workbook = XLSX.read(data);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    
+    // Leemos el Excel como una matriz de filas
+    const filas = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+    // .slice(1) elimina la primera fila (los títulos azul oscuro de tu Excel)
+    // f[1] es Nombre, f[2] es Institución, etc. (Saltamos f[0] que es "NUM")
+    const datosLimpios = filas.slice(1).map(f => {
+        return {
+            nombre: f[1] || "",
+            rango: f[2] || "",
+            mision: f[3] || "",
+            diocesis: f[4] || "",
+            telefono: f[5] || ""
+        };
+    }).filter(f => f.nombre || f.rango || f.telefono); 
+
+    generarPDF(datosLimpios);
+}
+
+function generarPDF(lista) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'pt', 'a4');
+
+    // --- CONFIGURACIÓN DE PÁGINA Y ESTILO ---
+    const azulInstitucional = [20, 40, 80];
+    const grisTexto = [80, 80, 80];
+
+    // Encabezado de página (se repetirá en cada hoja si es necesario)
+    const header = () => {
+        doc.setFillColor(...azulInstitucional);
+        doc.rect(40, 40, 515, 40, 'F'); // Barra superior
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(255, 255, 255);
+        doc.text("DIRECTORIO TELEFÓNICO INSTITUCIONAL", 60, 65);
+    };
+
+    const tablaCuerpo = lista.map(item => [
+        { 
+            content: item.nombre.toUpperCase(), 
+            styles: { fontStyle: 'bold', fontSize: 10, textColor: azulInstitucional } 
+        },
+        item.rango + "\n" + item.mision, // Agrupamos para mejor flujo visual
+        item.diocesis,
+        { 
+            content: item.telefono, 
+            styles: { fontStyle: 'bold', halign: 'right', fontSize: 10 } 
+        }
+    ]);
+
+    doc.autoTable({
+        startY: 90,
+        head: [['NOMBRE COMPLETO', 'RANGO / MISIÓN', 'DIÓCESIS', 'TELÉFONO']],
+        body: tablaCuerpo,
+        theme: 'striped', // Fondo alterno muy suave
+        margin: { top: 90, bottom: 60 },
+        styles: { 
+            fontSize: 9, 
+            cellPadding: 12, // Mucho más espacio para que se vea premium
+            valign: 'middle',
+            overflow: 'linebreak',
+            lineColor: [230, 230, 230],
+            lineWidth: 0.5
+        },
+        headStyles: { 
+            fillColor: [240, 240, 240], 
+            textColor: azulInstitucional,
+            fontSize: 8,
+            fontStyle: 'bold',
+            halign: 'left',
+            lineWidth: 0
+        },
+        columnStyles: {
+            0: { cellWidth: 150 },
+            1: { cellWidth: 160, textColor: grisTexto },
+            3: { cellWidth: 90, textColor: [0, 102, 204] }
+        },
+        didDrawPage: function (data) {
+            header();
+            // Pie de página
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text("Página " + doc.internal.getNumberOfPages(), 500, 820);
+            doc.text("Hermandad de Veteranos FF.AA. y P.N.", 40, 820);
+        }
+    });
+
+    doc.save("Directorio_Premium.pdf");
+}
+    </script>
+</body>
+</html>
