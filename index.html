@@ -2,129 +2,217 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Directorio Oficial</title>
+    <title>Directorio Institucional Premium</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 min-h-screen flex items-center justify-center font-sans">
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
 
-    <div class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-lg border-t-8 border-blue-900">
-        <h1 class="text-2xl font-bold text-gray-800 mb-2">Directorio Telefónico</h1>
-        <p class="text-gray-500 mb-6 text-sm">Carga tu Excel para generar el PDF institucional.</p>
+    <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-2xl border-t-[12px] border-blue-900 relative">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">DIRECTORIO OFICIAL</h1>
+            <p class="text-slate-500 font-medium italic">Versión Premium con Portadas y Fotos</p>
+        </div>
 
-        <div class="space-y-4">
-            <input type="file" id="inputExcel" accept=".xlsx, .xls" 
-                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
-            
-            <button onclick="procesarYGenerar()" 
-                class="w-full bg-blue-900 text-white py-3 rounded-lg font-bold hover:bg-blue-800 transition duration-300 shadow-md">
-                GENERAR PDF LIMPIO
+        <div class="space-y-6">
+            <div class="p-6 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-200">
+                <label class="block text-sm font-bold text-blue-900 mb-3 uppercase tracking-wider">
+                    1. Cargar Archivo Excel (.xlsx)
+                </label>
+                <input type="file" id="inputExcel" accept=".xlsx, .xls" 
+                    class="block w-full text-sm text-slate-600 file:mr-4 file:py-2.5 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-900 file:text-white hover:file:bg-blue-800 cursor-pointer" />
+            </div>
+
+            <div class="p-6 bg-emerald-50 rounded-2xl border-2 border-dashed border-emerald-200">
+                <label class="block text-sm font-bold text-emerald-900 mb-3 uppercase tracking-wider">
+                    2. Cargar Fotos (Selección Múltiple)
+                </label>
+                <input type="file" id="inputFotos" multiple accept="image/*" onchange="cargarFotos(event)"
+                    class="block w-full text-sm text-slate-600 file:mr-4 file:py-2.5 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer" />
+                <p id="conteoFotos" class="text-xs text-emerald-700 mt-3 font-bold italic"></p>
+            </div>
+
+            <button onclick="procesarTodo()" 
+                class="w-full bg-blue-900 text-white py-5 rounded-2xl font-black text-xl hover:bg-blue-800 transition-all uppercase tracking-widest mt-4 shadow-lg active:scale-95">
+                Generar PDF Final
             </button>
         </div>
         
-        <div id="status" class="mt-4 text-center text-xs text-gray-400 italic"></div>
+        <p class="text-center text-[10px] text-slate-400 mt-8 uppercase tracking-tighter">Hermandad de Veteranos FF.AA. y P.N.</p>
     </div>
 
     <script>
-  async function procesarYGenerar() {
-    const fileInput = document.getElementById('inputExcel');
-    if (!fileInput.files[0]) return alert("Selecciona el archivo");
+        let mapaFotos = {};
 
-    const data = await fileInput.files[0].arrayBuffer();
-    const workbook = XLSX.read(data);
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    
-    // Leemos el Excel como una matriz de filas
-    const filas = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        // Carga las fotos a la memoria del navegador
+        function cargarFotos(event) {
+            const files = event.target.files;
+            mapaFotos = {};
+            const display = document.getElementById('conteoFotos');
+            display.innerText = "Procesando imágenes...";
 
-    // .slice(1) elimina la primera fila (los títulos azul oscuro de tu Excel)
-    // f[1] es Nombre, f[2] es Institución, etc. (Saltamos f[0] que es "NUM")
-    const datosLimpios = filas.slice(1).map(f => {
-        return {
-            nombre: f[1] || "",
-            rango: f[2] || "",
-            mision: f[3] || "",
-            diocesis: f[4] || "",
-            telefono: f[5] || ""
-        };
-    }).filter(f => f.nombre || f.rango || f.telefono); 
+            let contador = 0;
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    mapaFotos[file.name.toLowerCase()] = e.target.result;
+                    contador++;
+                    if (contador === files.length) {
+                        display.innerText = `✓ ${files.length} FOTOS CARGADAS CORRECTAMENTE`;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
 
-    generarPDF(datosLimpios);
-}
+        async function procesarTodo() {
+            const excelFile = document.getElementById('inputExcel').files[0];
+            if (!excelFile) return alert("Por favor, selecciona el archivo Excel.");
 
-function generarPDF(lista) {
+            const data = await excelFile.arrayBuffer();
+            const workbook = XLSX.read(data);
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            // Mapeo de columnas según tu Excel: B=Nombre, C=Inst, D=Mision, E=Diocesis, F=Tel, G=Foto
+            const cleanData = rawRows.slice(1).map(r => ({
+                nombre: (r[1] || "").toString().trim(),
+                instRango: (r[2] || "").toString().toUpperCase(),
+                mision: (r[3] || "").toString(),
+                diocesis: (r[4] || "").toString(),
+                telefono: (r[5] || "").toString(),
+                fotoKey: (r[6] || "").toString().toLowerCase().trim()
+            })).filter(x => x.nombre.length > 0);
+
+            // Estructura en el orden solicitado
+            const fuerzas = [
+                { titulo: "EJÉRCITO DE REPÚBLICA DOMINICANA", sigla: "ERD", color: [34, 84, 61], personal: [] },
+                { titulo: "ARMADA DE REPÚBLICA DOMINICANA", sigla: "ARD", color: [20, 40, 80], personal: [] },
+                { titulo: "FUERZA AÉREA DE REPÚBLICA DOMINICANA", sigla: "FARD", color: [70, 130, 180], personal: [] },
+                { titulo: "POLICÍA NACIONAL", sigla: "PN", color: [15, 23, 42], personal: [] },
+                { titulo: "OTROS / PERSONAL ADSCRITO", sigla: "OTROS", color: [80, 80, 80], personal: [] }
+            ];
+
+            // Clasificación
+            cleanData.forEach(p => {
+                if (p.instRango.includes("ERD")) fuerzas[0].personal.push(p);
+                else if (p.instRango.includes("ARD")) fuerzas[1].personal.push(p);
+                else if (p.instRango.includes("FARD")) fuerzas[2].personal.push(p);
+                else if (p.instRango.includes("PN") || p.instRango.includes("P.N.")) fuerzas[3].personal.push(p);
+                else fuerzas[4].personal.push(p);
+            });
+
+            generarPDF(fuerzas);
+        }
+
+       function generarPDF(fuerzas) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'pt', 'a4');
 
-    // --- CONFIGURACIÓN DE PÁGINA Y ESTILO ---
-    const azulInstitucional = [20, 40, 80];
-    const grisTexto = [80, 80, 80];
+    fuerzas.forEach((fuerza, i) => {
+        if (fuerza.personal.length === 0) return;
 
-    // Encabezado de página (se repetirá en cada hoja si es necesario)
-    const header = () => {
-        doc.setFillColor(...azulInstitucional);
-        doc.rect(40, 40, 515, 40, 'F'); // Barra superior
-        
+        // --- PORTADA DE SECCIÓN ---
+        if (doc.internal.getNumberOfPages() > 1 || i > 0) doc.addPage();
+        doc.setFillColor(...fuerza.color);
+        doc.rect(0, 0, 600, 842, 'F');
+        doc.setTextColor(255);
         doc.setFont("helvetica", "bold");
+        const fontSizePortada = fuerza.titulo.length > 30 ? 22 : 28;
+        doc.setFontSize(fontSizePortada);
+        doc.text(fuerza.titulo, 300, 400, { align: "center", maxWidth: 500, lineHeightFactor: 1.4 });
         doc.setFontSize(14);
-        doc.setTextColor(255, 255, 255);
-        doc.text("DIRECTORIO TELEFÓNICO INSTITUCIONAL", 60, 65);
-    };
+        doc.setFont("helvetica", "normal");
+        doc.text("DIRECTORIO OFICIAL DE MIEMBROS", 300, 460, { align: "center" });
 
-    const tablaCuerpo = lista.map(item => [
-        { 
-            content: item.nombre.toUpperCase(), 
-            styles: { fontStyle: 'bold', fontSize: 10, textColor: azulInstitucional } 
-        },
-        item.rango + "\n" + item.mision, // Agrupamos para mejor flujo visual
-        item.diocesis,
-        { 
-            content: item.telefono, 
-            styles: { fontStyle: 'bold', halign: 'right', fontSize: 10 } 
-        }
-    ]);
+        // --- PÁGINAS DE MIEMBROS ---
+        doc.addPage();
+        let y = 80;
 
-    doc.autoTable({
-        startY: 90,
-        head: [['NOMBRE COMPLETO', 'RANGO / MISIÓN', 'DIÓCESIS', 'TELÉFONO']],
-        body: tablaCuerpo,
-        theme: 'striped', // Fondo alterno muy suave
-        margin: { top: 90, bottom: 60 },
-        styles: { 
-            fontSize: 9, 
-            cellPadding: 12, // Mucho más espacio para que se vea premium
-            valign: 'middle',
-            overflow: 'linebreak',
-            lineColor: [230, 230, 230],
-            lineWidth: 0.5
-        },
-        headStyles: { 
-            fillColor: [240, 240, 240], 
-            textColor: azulInstitucional,
-            fontSize: 8,
-            fontStyle: 'bold',
-            halign: 'left',
-            lineWidth: 0
-        },
-        columnStyles: {
-            0: { cellWidth: 150 },
-            1: { cellWidth: 160, textColor: grisTexto },
-            3: { cellWidth: 90, textColor: [0, 102, 204] }
-        },
-        didDrawPage: function (data) {
-            header();
-            // Pie de página
-            doc.setFontSize(8);
-            doc.setTextColor(150);
-            doc.text("Página " + doc.internal.getNumberOfPages(), 500, 820);
-            doc.text("Hermandad de Veteranos FF.AA. y P.N.", 40, 820);
-        }
+        const drawPageHeader = () => {
+            doc.setFillColor(...fuerza.color);
+            doc.rect(0, 0, 600, 50, 'F');
+            doc.setTextColor(255);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text(fuerza.titulo, 40, 31);
+        };
+
+        drawPageHeader();
+
+        fuerza.personal.forEach(p => {
+            // Margen de seguridad para el siguiente contacto
+            if (y + 150 > 800) {
+                doc.addPage();
+                drawPageHeader();
+                y = 80;
+            }
+
+            // Foto
+            if (p.fotoKey && mapaFotos[p.fotoKey]) {
+                doc.addImage(mapaFotos[p.fotoKey], 'JPEG', 40, y, 85, 85);
+            } else {
+                doc.setDrawColor(220);
+                doc.roundedRect(40, y, 85, 85, 4, 4, 'D');
+            }
+
+            const textX = 140;
+            const labelW = 65; // Ancho del espacio para "MISIÓN:", "DIÓCESIS:", etc.
+            const textMaxW = 260; // Ancho máximo del contenido
+            let currentY = y + 15; // Empezamos en la parte superior de la ficha
+
+            // 1. NOMBRE (Negrita)
+            doc.setTextColor(...fuerza.color);
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text(p.nombre.toUpperCase(), textX, currentY);
+            currentY += 20; // Bajamos un poco después del nombre
+
+            // Configuración para los detalles
+            doc.setFontSize(8.5);
+            doc.setTextColor(70);
+            const interlineado = 12;
+
+            // Función para dibujar etiqueta + texto con salto de línea dinámico
+            const drawDynamicField = (label, content) => {
+                doc.setFont("helvetica", "bold");
+                doc.text(label, textX, currentY);
+                
+                doc.setFont("helvetica", "normal");
+                // Dividimos el texto según el ancho máximo
+                const lines = doc.splitTextToSize(content, textMaxW - labelW);
+                doc.text(lines, textX + labelW, currentY);
+                
+                // Aumentamos currentY según la cantidad de líneas que salieron
+                currentY += (lines.length * interlineado) + 4;
+            };
+
+            // 2. RANGO/INST
+            drawDynamicField("RANGO/INST:", p.instRango);
+            
+            // 3. MISIÓN (Ahora si es larga, empujará a la Diócesis)
+            drawDynamicField("MISIÓN:", p.mision);
+            
+            // 4. DIÓCESIS
+            drawDynamicField("DIÓCESIS:", p.diocesis);
+
+            // Botón de teléfono (se mantiene a la derecha)
+            doc.setFillColor(245, 247, 250);
+            doc.roundedRect(430, y + 30, 115, 30, 5, 5, 'F');
+            doc.setTextColor(...fuerza.color);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10.5);
+            doc.text(p.telefono, 487, y + 50, { align: "center" });
+
+            // El próximo contacto empezará dependiendo de qué fue más alto: la foto o el texto
+            const textHeightTotal = currentY - y;
+            const finalHeight = Math.max(95, textHeightTotal);
+            y += finalHeight + 25; // Espacio entre contactos
+        });
     });
 
-    doc.save("Directorio_Premium.pdf");
+    doc.save("Directorio_Ajustado_Premium.pdf");
 }
     </script>
 </body>
